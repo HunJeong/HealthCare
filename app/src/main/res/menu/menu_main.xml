@@ -1,0 +1,44 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="com.example.jeonghun.publicseoul.MainActivity">
+
+    <item
+        android:id="@+id/action_start"
+        android:icon="@android:drawable/ic_media_play"
+        android:title="@string/action_starting"
+        app:showAsAction="always"/>
+
+    <item
+        android:id="@+id/action_stop"
+        android:icon="@android:drawable/checkbox_off_background"
+        android:title="@string/action_stopping"
+        app:showAsAction="always"
+        />
+
+    <item
+        android:id="@+id/action_lock"
+        android:icon="@android:drawable/ic_lock_idle_lock"
+        android:title="@string/action_locking"
+        app:showAsAction="always"/>
+
+    <item
+        android:id="@+id/action_BTscan"
+        android:orderInCategory="100"
+        android:title="@string/action_scanning"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/records"
+        android:orderInCategory="100"
+        android:title="show my records"
+        app:showAsAction="never"
+        />
+
+    <item
+        android:id="@+id/action_standard"
+        android:orderInCategory="100"
+        android:title="@string/action_settings"
+        app:showAsAction="never" />
+
+</menu>
