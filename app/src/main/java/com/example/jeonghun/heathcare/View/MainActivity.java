@@ -15,10 +15,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.MotionEvent;
-import android.view.View;
 import android.view.ViewGroup;
-import android.view.WindowManager;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -29,13 +26,10 @@ import com.example.jeonghun.heathcare.Bluetooth.BluetoothReceiveService;
 import com.example.jeonghun.heathcare.DB.Dao;
 import com.example.jeonghun.heathcare.PushEvent;
 import com.example.jeonghun.heathcare.R;
-import com.example.jeonghun.heathcare.RecordActivity;
 import com.example.jeonghun.heathcare.RecordData;
 import com.example.jeonghun.heathcare.TwoData;
 
 import org.greenrobot.eventbus.EventBus;
-import org.greenrobot.eventbus.Subscribe;
-import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.Date;

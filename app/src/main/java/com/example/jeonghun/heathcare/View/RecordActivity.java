@@ -1,4 +1,4 @@
-package com.example.jeonghun.heathcare;
+package com.example.jeonghun.heathcare.View;
 
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -9,6 +9,8 @@ import android.widget.Spinner;
 import android.widget.TextView;
 
 import com.example.jeonghun.heathcare.Adapter.CustomSpinnerAdapter;
+import com.example.jeonghun.heathcare.R;
+import com.example.jeonghun.heathcare.RecordData;
 import com.example.jeonghun.heathcare.View.MainActivity;
 import com.jjoe64.graphview.GraphView;
 import com.jjoe64.graphview.series.BarGraphSeries;
