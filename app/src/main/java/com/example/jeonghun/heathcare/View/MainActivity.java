@@ -475,7 +475,9 @@ public class MainActivity extends AppCompatActivity {
         builder.setNegativeButton("No", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-
+                timerValue.setText("" + 0 + ":"
+                        + String.format("%02d", 0) + ":"
+                        + String.format("%03d", 0));
             }
         });
         AlertDialog dialog = builder.create();
