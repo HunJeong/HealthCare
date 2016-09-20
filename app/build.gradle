@@ -7,6 +7,7 @@ android {
 
     defaultConfig {
         applicationId "com.example.jeonghun.heathcare"
+        multiDexEnabled true
         minSdkVersion 11
         targetSdkVersion 23
         versionCode 1
@@ -28,4 +29,6 @@ dependencies {
     compile 'com.android.support:support-v4:23.3.0'
     compile 'com.android.support:design:23.3.0'
     compile 'com.jjoe64:graphview:4.2.1'
+    compile 'com.android.support:multidex:1.0.1'
+
 }

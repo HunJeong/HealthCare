@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -16,6 +17,7 @@ import com.example.jeonghun.heathcare.View.MainActivity;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 
@@ -25,10 +27,11 @@ import java.util.ArrayList;
  */
 public class InformationFragment extends Fragment {
 
+    private static final String TAG = "Fragment";
+
     private TextView muscleLoad;
     private TextView heartRate;
-    private TextView cadence;
-    private TextView speed;
+    private TextView power;
     private TextView ratio;
     private TextView balance;
 
@@ -55,10 +58,9 @@ public class InformationFragment extends Fragment {
 
         muscleLoad = (TextView)view.findViewById(R.id.muscleLoadGaugeTextView);
         heartRate = (TextView)view.findViewById(R.id.heartRateGauge);
-        cadence = (TextView)view.findViewById(R.id.cadenceGagueTextView);
-        speed = (TextView)view.findViewById(R.id.speedGaugeTextView);
         ratio = (TextView)view.findViewById(R.id.ratioGagueTextView);
         balance = (TextView)view.findViewById(R.id.balanceGaugeTextView);
+        power = (TextView)view.findViewById(R.id.power);
     }
 
     @Override
@@ -73,12 +75,25 @@ public class InformationFragment extends Fragment {
         handler.post(new Runnable() {
             @Override
             public void run() {
-                muscleLoad.setText(MainActivity.data);
-                heartRate.setText(MainActivity.data);
-                cadence.setText(MainActivity.data);
-                speed.setText(MainActivity.data);
-                ratio.setText(MainActivity.data);
-                balance.setText(MainActivity.data);
+                try {
+                    JSONObject jsonObject = new JSONObject(MainActivity.data);
+                    int left = Integer.valueOf(jsonObject.getString("left"))*2;
+                    int right = Integer.valueOf(jsonObject.getString("right"))*2;
+                    Log.e(TAG, String.valueOf(left) + " : " + MainActivity.LEFT_AVERAGE);
+                    float balanc = (float)Math.abs(left-right)/left*100;
+                    if (right == left) {
+                        power.setText("=");
+                    } else {
+                        power.setText((left > right) ? ">" : "<");
+                    }
+                    balanc = (balanc > 100) ? 0 : 100-balanc;
+                    muscleLoad.setText(String.valueOf(left - MainActivity.LEFT_AVERAGE));
+                    heartRate.setText(String.valueOf(right - MainActivity.RIGHT_AVERAGE));
+                    ratio.setText("0");
+                    balance.setText(String.valueOf(balanc));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
         });
     }

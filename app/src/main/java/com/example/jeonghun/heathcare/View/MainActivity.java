@@ -1,21 +1,28 @@
 package com.example.jeonghun.heathcare.View;
 
-import android.app.Activity;
+import android.app.ProgressDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.graphics.Color;
 import android.os.Handler;
-import android.os.Message;
 import android.os.SystemClock;
+import android.support.annotation.IntegerRes;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.text.Html;
+import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.ListView;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -23,6 +30,7 @@ import android.widget.Toast;
 import com.example.jeonghun.heathcare.Adapter.CustomSpinnerAdapter;
 import com.example.jeonghun.heathcare.Adapter.PagerAdapter;
 import com.example.jeonghun.heathcare.Bluetooth.BluetoothReceiveService;
+import com.example.jeonghun.heathcare.Bluetooth.BluetoothSerialClient;
 import com.example.jeonghun.heathcare.DB.Dao;
 import com.example.jeonghun.heathcare.PushEvent;
 import com.example.jeonghun.heathcare.R;
@@ -32,7 +40,14 @@ import com.example.jeonghun.heathcare.TwoData;
 import org.greenrobot.eventbus.EventBus;
 import org.json.JSONObject;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.LinkedList;
+import java.util.Set;
 
 import io.realm.Realm;
 import io.realm.RealmConfiguration;
@@ -42,11 +57,11 @@ public class MainActivity extends AppCompatActivity {
 
     public static String data = "0";
 
-    private static final String TAG = "BluetoothReceiveService";
-    private static final int REQUEST_SET = 100;
     private static final int REQUEST_CONNECT_DEVICE = 101;
-    private static final int REQUEST_BT_ON = 200;
     private static final boolean D = true;
+
+    public static Integer LEFT_AVERAGE = 0;
+    public static Integer RIGHT_AVERAGE = 0;
 
     public static final int MESSAGE_STATE_CHANGE = 1;
     public static final int MESSAGE_READ = 2;
@@ -55,8 +70,13 @@ public class MainActivity extends AppCompatActivity {
     public static final int MESSAGE_TOAST = 5;
 
     private static final int REQUEST_CONNECT_DEVICE_SECURE = 1;
-    private static final int REQUEST_CONNECT_DEVICE_INSECURE = 2;
     private static final int REQUEST_ENABLE_BT = 3;
+
+    private static final String TAG = "MainActivity";
+    private static final int REQUEST_SET = 100;
+    private static final int REQUEST_BT_ON = 200;
+
+    private static final int REQUEST_CONNECT_DEVICE_INSECURE = 2;
 
     public static final String DEVICE_NAME = "device_name";
     public static final String TOAST = "toast";
@@ -65,18 +85,12 @@ public class MainActivity extends AppCompatActivity {
     private ViewGroup viewGroup;
     private Spinner spinner;
 
-    // Name of the connected device
-    private String mConnectedDeviceName = null;
-    // String buffer for outgoing messages
-    private StringBuffer mOutStringBuffer;
-    // Local Bluetooth adapter
     private BluetoothAdapter mBluetoothAdapter = null;
-    // Member object for the chat services
-    private BluetoothReceiveService mReceiveService = null;
+    private BluetoothSerialClient mSerialClient = null;
 
     private boolean t = true;
     private boolean e = true;
-    private boolean touchable = true;
+    private Boolean running = false;
     private MenuItem startItem;
     private TextView timerValue;
     private long startTime = 0L;
@@ -87,26 +101,37 @@ public class MainActivity extends AppCompatActivity {
 
     private long backKeyPressedTime;
 
-    private Dao dao;
-
     private Realm realm;
     private String[] sports = {"Not specified sport", "Running", "Cycling", "Mountain biking", "Walking", "Indoor cycling", "Triathlon", "Crosscountry skiing", "Treadmill"};
-    private RealmList<TwoData> twoDatas = null;
+    private ArrayList<TwoData> twoDatas = null;
+
+    private Dao dao;
+
+    private LinkedList<BluetoothDevice> mBluetoothDevices = new LinkedList<>();
+    private ArrayAdapter<String> mDeviceArrayAdapter;
+    private AlertDialog mDeviceListDialog;
+    private ProgressDialog mLoadingDialog;
+    private Menu mMenu;
+
+    private Integer num = 0;
+
+    ProgressDialog progressDialog = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         Intent startIntent = new Intent(this, BluetoothOnActivity.class);
         startActivityForResult(startIntent, REQUEST_BT_ON);
-        setupReceive();
-        init();
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-        if (mBluetoothAdapter == null) {
+        mSerialClient = BluetoothSerialClient.getInstance();
+        if (mBluetoothAdapter == null || mSerialClient == null) {
             Toast.makeText(this, "Bluetooth is not available", Toast.LENGTH_LONG).show();
             finish();
             return;
         }
+        init();
+
         dao = Dao.getInstance(getApplicationContext());
         timerValue = (TextView)findViewById(R.id.timer);
         spinner = (Spinner)findViewById(R.id.spinner);
@@ -125,156 +150,262 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        if(D) Log.e(TAG, "+ ON RESUME +");
-        // Performing this check in onResume() covers the case in which BT was
-        // not enabled during onStart(), so we were paused to enable it...
-        // onResume() will be called when ACTION_REQUEST_ENABLE activity returns.
-        if (mReceiveService != null) {
-            // Only if the state is STATE_NONE, do we know that we haven't started already
-            if (mReceiveService.getState() == mReceiveService.STATE_NONE) {
-                // Start the Bluetooth chat services
-                mReceiveService.start();
-            }
-        }
+        enableBluetooth();
+    }
+
+    @Override
+    protected void onPause() {
+        mSerialClient.cancelScan(getApplicationContext());
+        super.onPause();
     }
 
     private void init() {
         RealmConfiguration realmConfiguration = new RealmConfiguration.Builder(MainActivity.this).build();
         Realm.setDefaultConfiguration(realmConfiguration);
         realm = Realm.getDefaultInstance();
+
+        mSerialClient = BluetoothSerialClient.getInstance();
+        if (mSerialClient.isEnabled()) {
+            mSerialClient.enableBluetooth(getApplicationContext(), new BluetoothSerialClient.OnBluetoothEnabledListener() {
+                @Override
+                public void onBluetoothEnabled(boolean success) {
+
+                }
+            });
+        }
+        initDeviceListDialog();
+        initProgressDialog();
     }
 
-    private void setupReceive(){
-        Log.d(TAG, "setupReceive");
-        // Initialize the BluetoothChatService to perform bluetooth connections
-        mReceiveService = new BluetoothReceiveService(this, mHandler);
+    private void initProgressDialog() {
+        mLoadingDialog = new ProgressDialog(this);
+        mLoadingDialog.setCancelable(false);
+    }
 
-        // Initialize the buffer for outgoing messages
-        mOutStringBuffer = new StringBuffer("");
+    private void initDeviceListDialog() {
+        mDeviceArrayAdapter = new ArrayAdapter<>(getApplicationContext(), android.R.layout.simple_list_item_1);
+        ListView listView = new ListView(getApplicationContext());
+        listView.setBackgroundColor(Color.BLACK);
+        listView.setAdapter(mDeviceArrayAdapter);
+        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                String item =  (String) parent.getItemAtPosition(position);
+                for(BluetoothDevice device : mBluetoothDevices) {
+                    if(item.contains(device.getAddress())) {
+                        connect(device);
+                        mDeviceListDialog.cancel();
+                    }
+                }
+            }
+        });
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Select bluetooth device");
+        builder.setView(listView);
+        builder.setPositiveButton("Scan",
+                new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int id) {
+                        scanDevices();
+                    }
+                });
+        mDeviceListDialog = builder.create();
+        mDeviceListDialog.setCanceledOnTouchOutside(false);
+    }
+
+    private void addDeviceToArrayAdapter(BluetoothDevice device) {
+        if(mBluetoothDevices.contains(device)) {
+            mBluetoothDevices.remove(device);
+            mDeviceArrayAdapter.remove(device.getName() + "\n" + device.getAddress());
+        }
+        mBluetoothDevices.add(device);
+        mDeviceArrayAdapter.add(device.getName() + "\n" + device.getAddress() );
+        mDeviceArrayAdapter.notifyDataSetChanged();
 
     }
 
-    @Override
-    protected synchronized void onPause() {
-        super.onPause();
-        if(D) Log.e(TAG, "- ON PAUSE -");
+    private void enableBluetooth() {
+        BluetoothSerialClient btSet =  mSerialClient;
+        btSet.enableBluetooth(this, new BluetoothSerialClient.OnBluetoothEnabledListener() {
+            @Override
+            public void onBluetoothEnabled(boolean success) {
+                if(success) {
+                    getPairedDevices();
+                } else {
+                    finish();
+                }
+            }
+        });
     }
 
-    @Override
-    protected void onStop() {
-        super.onStop();
-        if(D) Log.e(TAG, "-- ON STOP --");
+    private void getPairedDevices() {
+        Set<BluetoothDevice> devices =  mSerialClient.getPairedDevices();
+        for(BluetoothDevice device: devices) {
+            addDeviceToArrayAdapter(device);
+        }
     }
 
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        // Stop the Bluetooth chat services
-        if (mReceiveService != null) mReceiveService.stop();
-        if(D) Log.e(TAG, "--- ON DESTROY ---");
-        realm.close();
+    private void scanDevices() {
+        BluetoothSerialClient btSet = mSerialClient;
+        btSet.scanDevices(getApplicationContext(), new BluetoothSerialClient.OnScanListener() {
+            String message ="";
+            @Override
+            public void onStart() {
+                Log.d("Test", "Scan Start.");
+                mLoadingDialog.show();
+                message = "Scanning....";
+                mLoadingDialog.setMessage("Scanning....");
+                mLoadingDialog.setCancelable(true);
+                mLoadingDialog.setCanceledOnTouchOutside(false);
+                mLoadingDialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
+                    @Override
+                    public void onCancel(DialogInterface dialog) {
+                        BluetoothSerialClient btSet = mSerialClient;
+                        btSet.cancelScan(getApplicationContext());
+                    }
+                });
+            }
+
+            @Override
+            public void onFoundDevice(BluetoothDevice bluetoothDevice) {
+                addDeviceToArrayAdapter(bluetoothDevice);
+                message += "\n" + bluetoothDevice.getName() + "\n" + bluetoothDevice.getAddress();
+                mLoadingDialog.setMessage(message);
+            }
+
+            @Override
+            public void onFinish() {
+                Log.d("Test", "Scan finish.");
+                message = "";
+                mLoadingDialog.cancel();
+                mLoadingDialog.setCancelable(false);
+                mLoadingDialog.setOnCancelListener(null);
+                mDeviceListDialog.show();
+            }
+        });
     }
 
-    private final void setStatus(int resId) {
-        //final ActionBar actionBar = getActionBar();
-        //actionBar.setSubtitle(resId);
-    }
 
-    private final void setStatus(CharSequence subTitle) {
-        //final ActionBar actionBar = getActionBar();
-        //actionBar.setSubtitle(subTitle);
+    private void connect(BluetoothDevice device) {
+        mLoadingDialog.setMessage("Connecting....");
+        mLoadingDialog.setCancelable(false);
+        mLoadingDialog.show();
+        BluetoothSerialClient btSet =  mSerialClient;
+        btSet.connect(getApplicationContext(), device, mBTHandler);
     }
 
     // The Handler that gets information back from the BluetoothReceiveService
-    private final Handler mHandler = new Handler() {
-        @Override
-        public void handleMessage(Message msg) {
-            switch (msg.what) {
-                case MESSAGE_STATE_CHANGE:
-                    if(D) Log.i(TAG, "MESSAGE_STATE_CHANGE: " + msg.arg1);
-                    switch (msg.arg1) {
-                        case BluetoothReceiveService.STATE_CONNECTED:
-                            Log.d(TAG, "BluetoothReceiveService connected");
-                            setStatus(getString(R.string.title_connected_to, mConnectedDeviceName));
-                            break;
-                        case BluetoothReceiveService.STATE_CONNECTING:
-                            Log.d(TAG, "BluetoothReceiveService connecting");
-                            setStatus(R.string.title_connecting);
-                            break;
-                        case BluetoothReceiveService.STATE_LISTEN:
-                        case BluetoothReceiveService.STATE_NONE:
-                            Log.d(TAG, "BluetoothReceiveService none");
-                            setStatus(R.string.title_not_connected);
-                            break;
-                    }
-                    break;
-                case MESSAGE_WRITE:
-                    Log.d(TAG, "message write");
-                    byte[] writeBuf = (byte[]) msg.obj;
-                    // construct a string from the buffer
-                    String writeMessage = new String(writeBuf);
-                    break;
-                case MESSAGE_READ:
-                    Log.d(TAG, "message read");
-                    byte[] readBuf = (byte[]) msg.obj;
-                    // construct a string from the valid bytes in the buffer
-                    final String readMessage = new String(readBuf, 0, msg.arg1);
-                    MainActivity.this.runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            Toast.makeText(MainActivity.this, readMessage, Toast.LENGTH_SHORT).show();
-                        }
-                    });
 
+    private BluetoothSerialClient.BluetoothStreamingHandler mBTHandler = new BluetoothSerialClient.BluetoothStreamingHandler() {
+        ByteBuffer mmByteBuffer = ByteBuffer.allocate(1024);
+
+        @Override
+        public void onError(Exception e) {
+            mLoadingDialog.cancel();
+            mMenu.getItem(0).setTitle(R.string.action_connect);
+            Toast.makeText(getApplicationContext(), "onError", Toast.LENGTH_SHORT).show();
+        }
+
+        @Override
+        public void onDisconnected() {
+            mMenu.getItem(0).setTitle(R.string.action_connect);
+            mLoadingDialog.cancel();
+            Toast.makeText(getApplicationContext(), "onDisconnected", Toast.LENGTH_SHORT).show();
+        }
+        @Override
+        public void onData(byte[] buffer, int length) {
+            Log.e("jsotest", new String(buffer, 0, length));
+
+            int left = 0, right = 0;
+
+            if(length == 0) return;
+
+            if(mmByteBuffer.position() + length >= mmByteBuffer.capacity()) {
+                ByteBuffer newBuffer = ByteBuffer.allocate(mmByteBuffer.capacity() * 2);
+                newBuffer.put(mmByteBuffer.array(), 0,  mmByteBuffer.position());
+                mmByteBuffer = newBuffer;
+            }
+            mmByteBuffer.put(buffer, 0, length);
+            if(buffer[length - 1] == '}') {
+                String json = new String(mmByteBuffer.array(), 0, mmByteBuffer.position());
+                data = json;
+                EventBus.getDefault().post(new PushEvent(json));
+                Log.e("json", json);
+                mmByteBuffer.clear();
+                try {
+                    JSONObject jsonObject = new JSONObject(json);
+                    left = Integer.valueOf(jsonObject.getString("left"));
+                    right = Integer.valueOf(jsonObject.getString("right"));
+                    if (progressDialog != null) {
+                        synchronized (num) {
+                            synchronized (LEFT_AVERAGE) {
+                                synchronized (RIGHT_AVERAGE) {
+                                    Log.e("num", num.toString());
+                                    Log.e("num", String.valueOf(LEFT_AVERAGE) + " : " + String.valueOf(RIGHT_AVERAGE));
+
+                                    if (num >= 8) {
+                                        LEFT_AVERAGE /= 10;
+                                        RIGHT_AVERAGE /= 10;
+                                        LEFT_AVERAGE -= 150;
+                                        RIGHT_AVERAGE -= 150;
+                                        LEFT_AVERAGE = (LEFT_AVERAGE > 0) ? LEFT_AVERAGE : 0;
+                                        RIGHT_AVERAGE = (RIGHT_AVERAGE > 0) ? RIGHT_AVERAGE : 0;
+                                        num = 0;
+                                        progressDialog.dismiss();
+                                        progressDialog = null;
+                                        Log.e("num", String.valueOf(LEFT_AVERAGE) + " : " + String.valueOf(RIGHT_AVERAGE));
+
+                                    }
+                                    LEFT_AVERAGE += left;
+                                    RIGHT_AVERAGE += right;
+                                    num++;
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
+
+                if (running) {
                     try {
-                        JSONObject jsonObject = new JSONObject(readMessage);
-                        int left = Integer.valueOf(jsonObject.getString("left"));
-                        int right = Integer.valueOf(jsonObject.getString("right"));
+                        Log.e("json", json);
 
                         if (twoDatas != null) {
                             TwoData twoData = new TwoData();
-                            twoData.setLeft(left);
-                            twoData.setRight(right);
+                            twoData.setLeft(left*2-LEFT_AVERAGE);
+                            twoData.setRight(right*2-RIGHT_AVERAGE);
                             twoDatas.add(twoData);
                         }
 
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
-
-                    data = readMessage;
-
-                    EventBus.getDefault().post(new PushEvent(data));
-
-                    break;
-                case MESSAGE_DEVICE_NAME:
-                    Log.d(TAG, "message device name");
-                    // save the connected device's name
-                    mConnectedDeviceName = msg.getData().getString(DEVICE_NAME);
-                    Toast.makeText(getApplicationContext(), "Connected to "
-                            + mConnectedDeviceName, Toast.LENGTH_SHORT).show();
-                    break;
-                case MESSAGE_TOAST:
-                    Log.d(TAG, "message toast");
-                    Toast.makeText(getApplicationContext(), msg.getData().getString(TOAST),
-                            Toast.LENGTH_SHORT).show();
-                    break;
+                }
             }
+
+            //Log.e("json", new String(mmByteBuffer.array(), 0, mmByteBuffer.position()));
+            //Log.e("json", String.valueOf(length) + " : " + Arrays.toString(buffer));
+
+        }
+
+        @Override
+        public void onConnected() {
+            mLoadingDialog.cancel();
+            mMenu.getItem(0).setTitle(R.string.action_disconnect);
+            Toast.makeText(MainActivity.this, "onConnected", Toast.LENGTH_SHORT).show();
+            progressDialog = new ProgressDialog(MainActivity.this);
+            progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+            progressDialog.setMessage("잠시만 기다려주십시오");
+            progressDialog.show();
+
         }
     };
 
-    private void connectDevice(Intent data, boolean secure) {
-        // Get the device MAC address
-        String address = data.getExtras()
-                .getString(DeviceListActivity.EXTRA_DEVICE_ADDRESS);
-        // Get the BluetoothDevice object
-        try {
-            BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(address);
-            // Attempt to connect to the device
-            mReceiveService.connect(device, secure);
-        } catch (Exception e){
-            e.printStackTrace();
-        }
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        mSerialClient.claer();
     }
 
     private Runnable updateTimerThread = new Runnable() {
@@ -310,36 +441,10 @@ public class MainActivity extends AppCompatActivity {
 
             case BluetoothOnActivity.BLUETOOTH_OK:
                 println(TAG, "Bluetooth_OK");
-                serverIntent = new Intent(this, DeviceListActivity.class);
-                startActivityForResult(serverIntent, REQUEST_CONNECT_DEVICE_INSECURE);
                 break;
 
         }
-        switch (requestCode) {
-            case REQUEST_CONNECT_DEVICE_SECURE:
-                // When DeviceListActivity returns with a device to connect
-                if (resultCode == Activity.RESULT_OK) {
-                    connectDevice(data, true);
-                }
-                break;
-            case REQUEST_CONNECT_DEVICE_INSECURE:
-                // When DeviceListActivity returns with a device to connect
-                if (resultCode == Activity.RESULT_OK) {
-                    connectDevice(data, false);
-                }
-                break;
-            case REQUEST_ENABLE_BT:
-                // When the request to enable Bluetooth returns
-                if (resultCode == Activity.RESULT_OK) {
-                    // Bluetooth is now enabled, so set up a chat session
-                    setupReceive();
-                } else {
-                    // User did not enable Bluetooth or an error occurred
-                    Log.d(TAG, "BT not enabled");
-                    Toast.makeText(this, R.string.bt_not_enabled_leaving, Toast.LENGTH_SHORT).show();
-                    finish();
-                }
-        }
+
     }
 
     @Override
@@ -358,6 +463,7 @@ public class MainActivity extends AppCompatActivity {
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
+        mMenu = menu;
         startItem = menu.findItem(R.id.action_start);
         return true;
     }
@@ -375,7 +481,10 @@ public class MainActivity extends AppCompatActivity {
                     if (twoDatas != null)
                         twoDatas = null;
 
-                    twoDatas = new RealmList<>();
+                    twoDatas = new ArrayList<>();
+                    synchronized (running) {
+                        running = true;
+                    }
 
                 } else {
                     timeSwapBuff += timeInMilliseconds;
@@ -397,6 +506,9 @@ public class MainActivity extends AppCompatActivity {
                 } catch (Exception e){
                     e.printStackTrace();
                 }
+                    synchronized (running) {
+                        running = false;
+                    }
                 break;
             case R.id.action_lock:
                 JSONObject object = Dao.getData();
@@ -412,8 +524,12 @@ public class MainActivity extends AppCompatActivity {
                 startActivity(intent);
                 break;
             case R.id.action_BTscan:
-                Intent serverIntent = new Intent(this, DeviceListActivity.class);
-                startActivityForResult(serverIntent, REQUEST_CONNECT_DEVICE_INSECURE);
+                boolean connect = mSerialClient.isConnection();
+                if (!connect) {
+                    mDeviceListDialog.show();
+                } else {
+                    mBTHandler.close();
+                }
                 break;
             case R.id.action_standard:
                 settingIntent = new Intent(this, SettingListActivity.class);
@@ -422,19 +538,39 @@ public class MainActivity extends AppCompatActivity {
         }
         return super.onOptionsItemSelected(item);
     }
-/*
-    public static void enableDisableViewGroup(ViewGroup viewGroup, boolean enabled) {
-        int childCount = viewGroup.getChildCount();
-        for (int i = 0; i < childCount; i++) {
-            View view = viewGroup.getChildAt(i);
-            view.setEnabled(enabled);
-            if (view instanceof ViewGroup) {
-                enableDisableViewGroup((ViewGroup) view, enabled);
-            }
-        }
+
+    private void showCodeDlg() {
+        TextView codeView = new TextView(this);
+        codeView.setText(Html.fromHtml(readCode()));
+        codeView.setMovementMethod(new ScrollingMovementMethod());
+        codeView.setBackgroundColor(Color.parseColor("#202020"));
+        new AlertDialog.Builder(this, android.R.style.Theme_Holo_Light_DialogWhenLarge)
+                .setView(codeView)
+                .setPositiveButton("OK", new AlertDialog.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.cancel();
+                    }
+                }).show();
     }
-*/
-    private void registerExercise(String data){
+
+    private String readCode() {
+        try {
+            InputStream is = getAssets().open("HC_06_Echo.txt"); //getAssets().open("HC_06_Echo.txt");
+            int length = is.available();
+            byte[] buffer = new byte[length];
+            is.read(buffer);
+            is.close();
+            String code = new String(buffer);
+            buffer = null;
+            return code;
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return "";
+    }
+
+     private void registerExercise(String data){
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Stop");
         builder.setMessage("Do you want to register your exercise?");
@@ -448,7 +584,10 @@ public class MainActivity extends AppCompatActivity {
                         public void execute(Realm realm) {
                             RecordData recordData = realm.createObject(RecordData.class);
                             recordData.setToday(new Date());
-                            recordData.setTwoDatas(twoDatas);
+                            for (TwoData tmp : twoDatas) {
+                                recordData.getTwoDatas().add(tmp);
+                                Log.e("test", tmp.toString());
+                            }
                             recordData.setSportTime(timerValue.getText().toString());
                         }
                     }, new Realm.Transaction.OnSuccess() {

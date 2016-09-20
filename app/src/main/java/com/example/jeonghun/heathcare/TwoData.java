@@ -26,4 +26,12 @@ public class TwoData extends RealmObject{
     public void setRight(int right) {
         this.right = right;
     }
+
+    @Override
+    public String toString() {
+        return "TwoData{" +
+                "left=" + left +
+                ", right=" + right +
+                '}';
+    }
 }

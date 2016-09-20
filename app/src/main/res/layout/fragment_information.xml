@@ -37,7 +37,7 @@
                     android:textStyle="bold"
                     android:gravity="center_horizontal|center_vertical"
                     android:textSize="20sp"
-                    android:text="Muscle Load"
+                    android:text="Left"
                     android:id="@+id/muscleLoadTextView" />
 
                 <TextView
@@ -56,7 +56,6 @@
                     android:layout_weight="2"
                     android:gravity="center_horizontal|center_vertical"
                     android:textSize="20sp"
-                    android:text="MA/min"
                     android:id="@+id/muscleLoadUnitTextView" />
 
             </LinearLayout>
@@ -76,7 +75,7 @@
                     android:textStyle="bold"
                     android:gravity="center_horizontal|center_vertical"
                     android:textSize="20sp"
-                    android:text="Heart Rate"
+                    android:text="right"
                     android:id="@+id/heartRateTextView" />
 
                 <TextView
@@ -95,94 +94,39 @@
                     android:layout_weight="2"
                     android:gravity="center_horizontal|center_vertical"
                     android:textSize="20sp"
-                    android:text="bpm"
                     android:id="@+id/heartRateUnitTextView" />
             </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
-            android:orientation="horizontal"
+            android:orientation="vertical"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:weightSum="2"
+            android:weightSum="1"
             android:layout_gravity="center_horizontal">
 
-            <LinearLayout
-                android:orientation="vertical"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:weightSum="10"
-                android:layout_height="match_parent">
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="0.20"
+                android:background="#ffff087f"
+                android:textStyle="bold"
+                android:gravity="center_horizontal|center_vertical"
+                android:textSize="20sp"
+                android:text="power"
+                android:id="@+id/textView8" />
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="0dp"
-                    android:layout_weight="2"
-                    android:background="#ffff087f"
-                    android:textStyle="bold"
-                    android:gravity="center_horizontal|center_vertical"
-                    android:textSize="20sp"
-                    android:text="Cadence"
-                    android:id="@+id/cadenceTextView" />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:gravity="center_horizontal|center_vertical"
+                android:textSize="100sp"
+                android:textStyle="bold"
+                android:text="-"
+                android:id="@+id/power"
+                android:layout_weight="0.80" />
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="0dp"
-                    android:layout_weight="6"
-                    android:gravity="center_horizontal|center_vertical"
-                    android:textSize="20sp"
-                    android:textStyle="bold"
-                    android:text="-"
-                    android:id="@+id/cadenceGagueTextView" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="0dp"
-                    android:layout_weight="2"
-                    android:gravity="center_horizontal|center_vertical"
-                    android:textSize="20sp"
-                    android:text="rpm"
-                    android:id="@+id/cadenceUnitTextView" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:orientation="vertical"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:weightSum="10"
-                android:layout_height="match_parent">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="0dp"
-                    android:layout_weight="2"
-                    android:background="#ffff087f"
-                    android:textStyle="bold"
-                    android:gravity="center_horizontal|center_vertical"
-                    android:textSize="20sp"
-                    android:text="Speed"
-                    android:id="@+id/speedTextView" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="0dp"
-                    android:layout_weight="6"
-                    android:gravity="center_horizontal|center_vertical"
-                    android:textSize="20sp"
-                    android:textStyle="bold"
-                    android:text="-"
-                    android:id="@+id/speedGaugeTextView" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="0dp"
-                    android:layout_weight="2"
-                    android:gravity="center_horizontal|center_vertical"
-                    android:textSize="20sp"
-                    android:text="km/h"
-                    android:id="@+id/speedUnitTextView" />
-            </LinearLayout>
         </LinearLayout>
 
         <LinearLayout

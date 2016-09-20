@@ -1,7 +1,9 @@
 package com.example.jeonghun.heathcare.View;
 
+import android.graphics.Color;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
@@ -15,10 +17,12 @@ import com.example.jeonghun.heathcare.View.MainActivity;
 import com.jjoe64.graphview.GraphView;
 import com.jjoe64.graphview.series.BarGraphSeries;
 import com.jjoe64.graphview.series.DataPoint;
+import com.jjoe64.graphview.series.LineGraphSeries;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 
 import io.realm.Realm;
 import io.realm.RealmResults;
@@ -62,7 +66,7 @@ public class RecordActivity extends AppCompatActivity {
         recordDatas = realm.where(RecordData.class).findAll();
         for (RecordData data : recordDatas) {
             days.add(simpleDateFormat.format(data.getToday()));
-            MainActivity.println(TAG, data.toString());
+            MainActivity.println(TAG, String.valueOf(data.getTwoDatas().size()) + " : "  + data.toString());
         }
         spinnerAdapter = new CustomSpinnerAdapter(getApplicationContext(), Arrays.copyOf(days.toArray(), days.toArray().length, String[].class));
         spinner.setAdapter(spinnerAdapter);
@@ -70,18 +74,24 @@ public class RecordActivity extends AppCompatActivity {
         spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                graphView.removeAllSeries();
                 RecordData recordData = recordDatas.get(position);
-                BarGraphSeries<DataPoint> lefts;
-                BarGraphSeries<DataPoint> rights;
+                LineGraphSeries<DataPoint> lefts;
+                LineGraphSeries<DataPoint> rights;
                 ArrayList<DataPoint> leftDataPoints = new ArrayList<>();
                 ArrayList<DataPoint> rightDataPoints = new ArrayList<>();
+
                 for (int i = 0; i < recordData.getTwoDatas().size(); i++) {
-                    leftDataPoints.add(new DataPoint(i, recordData.getTwoDatas().get(position).getLeft()));
-                    rightDataPoints.add(new DataPoint(i, recordData.getTwoDatas().get(position).getRight()));
+                    leftDataPoints.add(new DataPoint(i, recordData.getTwoDatas().get(i).getLeft()));
+                    rightDataPoints.add(new DataPoint(i, recordData.getTwoDatas().get(i).getRight()));
+                    Log.e(TAG, String.valueOf(i) + " : " + String.valueOf(recordData.getTwoDatas().get(i).getLeft()));
+                    Log.e(TAG, String.valueOf(i) + " : " + String.valueOf(recordData.getTwoDatas().get(i).getRight()));
+
                 }
-                lefts = new BarGraphSeries<>(Arrays.copyOf(leftDataPoints.toArray(), leftDataPoints.toArray().length, DataPoint[].class));
-                rights = new BarGraphSeries<>(Arrays.copyOf(rightDataPoints.toArray(), rightDataPoints.toArray().length, DataPoint[].class));
+                lefts = new LineGraphSeries<>(Arrays.copyOf(leftDataPoints.toArray(), leftDataPoints.toArray().length, DataPoint[].class));
+                rights = new LineGraphSeries<>(Arrays.copyOf(rightDataPoints.toArray(), rightDataPoints.toArray().length, DataPoint[].class));
                 textView.setText(simpleDateFormat.format(recordData.getToday()));
+                lefts.setColor(Color.RED);
                 graphView.addSeries(lefts);
                 graphView.addSeries(rights);
             }

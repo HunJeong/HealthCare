@@ -20,7 +20,9 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import com.example.jeonghun.heathcare.Bluetooth.BluetoothSerialClient;
 import com.example.jeonghun.heathcare.R;
 
 /**
@@ -31,6 +33,7 @@ import com.example.jeonghun.heathcare.R;
  */
 public class DeviceListActivity extends Activity {
     // Debugging
+
     private static final String TAG = "DeviceListActivity";
     private static final boolean D = true;
 
@@ -39,6 +42,7 @@ public class DeviceListActivity extends Activity {
 
     // Member fields
     private BluetoothAdapter mBtAdapter;
+    private BluetoothSerialClient mClient;
     private ArrayAdapter<String> mPairedDevicesArrayAdapter;
     private ArrayAdapter<String> mNewDevicesArrayAdapter;
 
@@ -87,9 +91,10 @@ public class DeviceListActivity extends Activity {
 
         // Get the local Bluetooth adapter
         mBtAdapter = BluetoothAdapter.getDefaultAdapter();
+        mClient = BluetoothSerialClient.getInstance();
 
         // Get a set of currently paired devices
-        Set<BluetoothDevice> pairedDevices = mBtAdapter.getBondedDevices();
+        Set<BluetoothDevice> pairedDevices = mClient.getPairedDevices();
 
         // If there are paired devices, add each one to the ArrayAdapter
         if (pairedDevices.size() > 0) {
@@ -149,6 +154,8 @@ public class DeviceListActivity extends Activity {
             String info = ((TextView) v).getText().toString();
             String address = info.substring(info.length() - 17);
 
+            Toast.makeText(getApplicationContext(), address, Toast.LENGTH_SHORT).show();
+
             // Create the result Intent and include the MAC address
             Intent intent = new Intent();
             intent.putExtra(EXTRA_DEVICE_ADDRESS, address);
@@ -185,4 +192,5 @@ public class DeviceListActivity extends Activity {
             }
         }
     };
+
 }

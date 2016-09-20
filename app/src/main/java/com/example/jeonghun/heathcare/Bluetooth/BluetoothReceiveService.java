@@ -354,10 +354,12 @@ public class BluetoothReceiveService {
                     tmp = device.createInsecureRfcommSocketToServiceRecord(
                             MY_UUID_INSECURE);
                 }
+                Log.e(TAG, "Socket complete");
             } catch (IOException e) {
                 Log.e(TAG, "Socket Type: " + mSocketType + "create() failed", e);
             }
             mmSocket = tmp;
+
         }
 
         public void run() {
@@ -366,7 +368,6 @@ public class BluetoothReceiveService {
 
             // Always cancel discovery because it will slow down a connection
             mAdapter.cancelDiscovery();
-
             // Make a connection to the BluetoothSocket
             try {
                 // This is a blocking call and will only return on a
@@ -374,9 +375,12 @@ public class BluetoothReceiveService {
                 mmSocket.connect();
             } catch (IOException e) {
                 // Close the socket
+                e.printStackTrace();
+                Log.e(TAG, "Connection Failed" + e.getMessage());
                 try {
                     mmSocket.close();
                 } catch (IOException e2) {
+                    e2.printStackTrace();
                     Log.e(TAG, "unable to close() " + mSocketType +
                             " socket during connection failure", e2);
                 }

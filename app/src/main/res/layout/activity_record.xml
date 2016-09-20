@@ -19,7 +19,7 @@
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:text="New Text"
+            android:text="No Data"
             android:gravity="center"
             android:textColor="#000000"
             android:textSize="24sp"
