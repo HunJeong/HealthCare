@@ -114,6 +114,7 @@ public class MainActivity extends AppCompatActivity {
     private Menu mMenu;
 
     private Integer num = 0;
+    private Boolean run = false;
 
     ProgressDialog progressDialog = null;
 
@@ -175,6 +176,8 @@ public class MainActivity extends AppCompatActivity {
         }
         initDeviceListDialog();
         initProgressDialog();
+
+        LEFT_AVERAGE = RIGHT_AVERAGE = 0;
     }
 
     private void initProgressDialog() {
@@ -313,80 +316,81 @@ public class MainActivity extends AppCompatActivity {
         }
         @Override
         public void onData(byte[] buffer, int length) {
-            Log.e("jsotest", new String(buffer, 0, length));
+            //Log.e("jsotest", new String(buffer, 0, length));
+            synchronized (run) {
+                int left = 0, right = 0;
 
-            int left = 0, right = 0;
+                if (length == 0) return;
 
-            if(length == 0) return;
-
-            if(mmByteBuffer.position() + length >= mmByteBuffer.capacity()) {
-                ByteBuffer newBuffer = ByteBuffer.allocate(mmByteBuffer.capacity() * 2);
-                newBuffer.put(mmByteBuffer.array(), 0,  mmByteBuffer.position());
-                mmByteBuffer = newBuffer;
-            }
-            mmByteBuffer.put(buffer, 0, length);
-            if(buffer[length - 1] == '}') {
-                String json = new String(mmByteBuffer.array(), 0, mmByteBuffer.position());
-                data = json;
-                EventBus.getDefault().post(new PushEvent(json));
-                Log.e("json", json);
-                mmByteBuffer.clear();
-                try {
-                    JSONObject jsonObject = new JSONObject(json);
-                    left = Integer.valueOf(jsonObject.getString("left"));
-                    right = Integer.valueOf(jsonObject.getString("right"));
-                    if (progressDialog != null) {
-                        synchronized (num) {
-                            synchronized (LEFT_AVERAGE) {
-                                synchronized (RIGHT_AVERAGE) {
-                                    Log.e("num", num.toString());
-                                    Log.e("num", String.valueOf(LEFT_AVERAGE) + " : " + String.valueOf(RIGHT_AVERAGE));
-
-                                    if (num >= 8) {
-                                        LEFT_AVERAGE /= 10;
-                                        RIGHT_AVERAGE /= 10;
-                                        LEFT_AVERAGE -= 150;
-                                        RIGHT_AVERAGE -= 150;
-                                        LEFT_AVERAGE = (LEFT_AVERAGE > 0) ? LEFT_AVERAGE : 0;
-                                        RIGHT_AVERAGE = (RIGHT_AVERAGE > 0) ? RIGHT_AVERAGE : 0;
-                                        num = 0;
-                                        progressDialog.dismiss();
-                                        progressDialog = null;
+                if (mmByteBuffer.position() + length >= mmByteBuffer.capacity()) {
+                    ByteBuffer newBuffer = ByteBuffer.allocate(mmByteBuffer.capacity() * 2);
+                    newBuffer.put(mmByteBuffer.array(), 0, mmByteBuffer.position());
+                    mmByteBuffer = newBuffer;
+                }
+                mmByteBuffer.put(buffer, 0, length);
+                if (buffer[length - 1] == '}') {
+                    String json = new String(mmByteBuffer.array(), 0, mmByteBuffer.position());
+                    data = json;
+                    EventBus.getDefault().post(new PushEvent(json));
+                    Log.e("json", json);
+                    mmByteBuffer.clear();
+                    try {
+                        JSONObject jsonObject = new JSONObject(json);
+                        left = Integer.valueOf(jsonObject.getString("left"));
+                        right = Integer.valueOf(jsonObject.getString("right"));
+                        if (progressDialog != null) {
+                            synchronized (num) {
+                                synchronized (LEFT_AVERAGE) {
+                                    synchronized (RIGHT_AVERAGE) {
+                                        Log.e("num", num.toString());
                                         Log.e("num", String.valueOf(LEFT_AVERAGE) + " : " + String.valueOf(RIGHT_AVERAGE));
 
+                                        if (num >= 10) {
+                                            LEFT_AVERAGE /= 10;
+                                            RIGHT_AVERAGE /= 10;
+                                            LEFT_AVERAGE -= 150;
+                                            RIGHT_AVERAGE -= 150;
+                                            LEFT_AVERAGE = (LEFT_AVERAGE > 0) ? LEFT_AVERAGE : 0;
+                                            RIGHT_AVERAGE = (RIGHT_AVERAGE > 0) ? RIGHT_AVERAGE : 0;
+                                            num = 0;
+                                            progressDialog.dismiss();
+                                            progressDialog = null;
+                                            Log.e("num", String.valueOf(LEFT_AVERAGE) + " : " + String.valueOf(RIGHT_AVERAGE));
+
+                                        }
+                                        LEFT_AVERAGE += left;
+                                        RIGHT_AVERAGE += right;
+                                        num++;
                                     }
-                                    LEFT_AVERAGE += left;
-                                    RIGHT_AVERAGE += right;
-                                    num++;
                                 }
                             }
                         }
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-
-
-                if (running) {
-                    try {
-                        Log.e("json", json);
-
-                        if (twoDatas != null) {
-                            TwoData twoData = new TwoData();
-                            twoData.setLeft(left*2-LEFT_AVERAGE);
-                            twoData.setRight(right*2-RIGHT_AVERAGE);
-                            twoDatas.add(twoData);
-                        }
-
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
+
+
+                    if (running) {
+                        try {
+                            //Log.e("json", json);
+
+                            if (twoDatas != null) {
+                                TwoData twoData = new TwoData();
+                                twoData.setLeft(left * 2 - LEFT_AVERAGE);
+                                twoData.setRight(right * 2 - RIGHT_AVERAGE);
+                                twoDatas.add(twoData);
+                            }
+
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
                 }
+
+                //Log.e("json", new String(mmByteBuffer.array(), 0, mmByteBuffer.position()));
+                //Log.e("json", String.valueOf(length) + " : " + Arrays.toString(buffer));
+
             }
-
-            //Log.e("json", new String(mmByteBuffer.array(), 0, mmByteBuffer.position()));
-            //Log.e("json", String.valueOf(length) + " : " + Arrays.toString(buffer));
-
         }
 
         @Override
