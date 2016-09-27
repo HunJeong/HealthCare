@@ -37,6 +37,8 @@ public class InformationFragment extends Fragment {
 
     private Handler handler;
 
+    private int diff = 0;
+
     public InformationFragment() {
         // Required empty public constructor
     }
@@ -78,19 +80,23 @@ public class InformationFragment extends Fragment {
                 try {
                     synchronized (MainActivity.LEFT_AVERAGE) {
                         synchronized (MainActivity.RIGHT_AVERAGE) {
+                            Log.e(TAG, String.valueOf(MainActivity.LEFT_AVERAGE) + " : " + String.valueOf(MainActivity.RIGHT_AVERAGE));
                             JSONObject jsonObject = new JSONObject(MainActivity.data);
-                            int left = Integer.valueOf(jsonObject.getString("left")) * 2;
-                            int right = Integer.valueOf(jsonObject.getString("right")) * 2;
-                            Log.e(TAG, String.valueOf(left - MainActivity.LEFT_AVERAGE) + " : " + String.valueOf(MainActivity.LEFT_AVERAGE));
+                            diff = (int)(MainActivity.LEFT_AVERAGE*0.5) - (int)(MainActivity.RIGHT_AVERAGE*0.5);
+                            int left = Integer.valueOf(jsonObject.getString("left")) - (int)(MainActivity.LEFT_AVERAGE*0.5);
+                            int right = Integer.valueOf(jsonObject.getString("right")) - (int)(MainActivity.RIGHT_AVERAGE*0.5);
                             float balanc = (float) Math.abs(left - right) / left * 100;
-                            if (right == left) {
+                            Log.d(TAG, String.valueOf(MainActivity.LEFT_AVERAGE) + " : " + String.valueOf(left) + " : " + String.valueOf(MainActivity.RIGHT_AVERAGE) + " : " + String.valueOf(right));
+                            if (Math.abs(right - left) <= 25) {
                                 power.setText("=");
+                            } else if (right > left) {
+                                power.setText("<");
                             } else {
-                                power.setText((left > right) ? ">" : "<");
+                                power.setText(">");
                             }
                             balanc = (balanc > 100) ? 0 : 100 - balanc;
-                            muscleLoad.setText(String.valueOf(left - MainActivity.LEFT_AVERAGE));
-                            heartRate.setText(String.valueOf(right - MainActivity.RIGHT_AVERAGE));
+                            muscleLoad.setText(String.valueOf(left));
+                            heartRate.setText(String.valueOf(right));
                             ratio.setText("0");
                             balance.setText(String.valueOf(balanc));
                         }

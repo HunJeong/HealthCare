@@ -313,6 +313,7 @@ public class MainActivity extends AppCompatActivity {
             mMenu.getItem(0).setTitle(R.string.action_connect);
             mLoadingDialog.cancel();
             Toast.makeText(getApplicationContext(), "onDisconnected", Toast.LENGTH_SHORT).show();
+            LEFT_AVERAGE = RIGHT_AVERAGE = 0;
         }
         @Override
         public void onData(byte[] buffer, int length) {
@@ -348,10 +349,8 @@ public class MainActivity extends AppCompatActivity {
                                         if (num >= 10) {
                                             LEFT_AVERAGE /= 10;
                                             RIGHT_AVERAGE /= 10;
-                                            LEFT_AVERAGE -= 150;
-                                            RIGHT_AVERAGE -= 150;
-                                            LEFT_AVERAGE = (LEFT_AVERAGE > 0) ? LEFT_AVERAGE : 0;
-                                            RIGHT_AVERAGE = (RIGHT_AVERAGE > 0) ? RIGHT_AVERAGE : 0;
+                                            LEFT_AVERAGE = Integer.valueOf((int) (LEFT_AVERAGE.doubleValue() * 0.8));
+                                            RIGHT_AVERAGE = Integer.valueOf((int) (RIGHT_AVERAGE.doubleValue() * 0.8));
                                             num = 0;
                                             progressDialog.dismiss();
                                             progressDialog = null;
